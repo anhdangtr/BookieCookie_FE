@@ -17,7 +17,7 @@ class BookieCookieApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Bookie Cookie',
-        home: LoginPage(),
+        home: const LoginPage(),
       ),
     );
   }
