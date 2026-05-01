@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import 'home_page.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -19,7 +20,16 @@ class _LoginPageState extends State<LoginPage> {
   final FocusNode passwordFocusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    emailController.addListener(_clearErrorIfNeeded);
+    passwordController.addListener(_clearErrorIfNeeded);
+  }
+
+  @override
   void dispose() {
+    emailController.removeListener(_clearErrorIfNeeded);
+    passwordController.removeListener(_clearErrorIfNeeded);
     emailController.dispose();
     passwordController.dispose();
     emailFocusNode.dispose();
@@ -27,13 +37,55 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  void _clearErrorIfNeeded() {
+    if (!mounted) {
+      return;
+    }
+
+    context.read<AuthViewModel>().clearError();
+  }
+
   Future<void> _handleLogin() async {
     final authVM = context.read<AuthViewModel>();
+    final email = emailController.text.trim();
+    final password = passwordController.text;
 
-    await authVM.login(
-      emailController.text.trim(),
-      passwordController.text,
+    FocusScope.of(context).unfocus();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập đầy đủ email và mật khẩu.'),
+        ),
+      );
+      return;
+    }
+
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email chưa đúng định dạng.'),
+        ),
+      );
+      return;
+    }
+
+    final success = await authVM.login(
+      email,
+      password,
     );
+
+    if (success && mounted && authVM.currentUser != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomePage(
+            user: authVM.currentUser!,
+            token: authVM.token,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -102,7 +154,6 @@ class _LoginPageState extends State<LoginPage> {
                     obscure: true,
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.password],
-                    onSubmitted: (_) => _handleLogin(),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
@@ -251,6 +302,9 @@ class _LoginPageState extends State<LoginPage> {
         keyboardType: keyboardType,
         textInputAction: textInputAction,
         autofillHints: autofillHints,
+        autocorrect: false,
+        enableSuggestions: false,
+        enableIMEPersonalizedLearning: false,
         onSubmitted: onSubmitted,
         style: const TextStyle(color: AppColors.darkBlue),
         decoration: InputDecoration(
