@@ -5,14 +5,11 @@ import '../core/constants/app_colors.dart';
 import '../data/models/home_dashboard_model.dart';
 import '../data/models/user_model.dart';
 import '../viewmodels/home_viewmodel.dart';
+import 'widgets/add_book_menu_button.dart';
 import 'widgets/app_bottom_bar.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({
-    super.key,
-    required this.user,
-    this.token,
-  });
+  const HomePage({super.key, required this.user, this.token});
 
   final UserModel user;
   final String? token;
@@ -45,47 +42,47 @@ class _HomePageView extends StatelessWidget {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
                     sliver: SliverList(
-                      delegate: SliverChildListDelegate(
-                        [
-                          _HomeHeader(userName: homeVM.user.name),
-                          const SizedBox(height: 28),
-                          _SectionTitle(
-                            title: 'Current reading',
-                            actionLabel: '${homeVM.dashboard?.currentReading.length ?? 0} books',
-                          ),
-                          const SizedBox(height: 16),
-                          _CurrentReadingSection(
-                            books: homeVM.dashboard?.currentReading ?? const [],
-                            isLoading: homeVM.isLoading,
-                          ),
-                          const SizedBox(height: 28),
-                          _SectionTitle(title: 'Streaks'),
-                          const SizedBox(height: 14),
-                          _StreakCard(
-                            streakDays: homeVM.dashboard?.streakDays ?? 0,
-                            activityCount: homeVM.dashboard?.activityCount ?? 0,
-                          ),
-                          const SizedBox(height: 28),
-                          _SectionTitle(
-                            title: 'Finish in ${homeVM.dashboard?.year ?? DateTime.now().year}',
-                          ),
-                          const SizedBox(height: 16),
-                          _FinishedBooksSection(
-                            books: homeVM.dashboard?.finishedInYear ?? const [],
-                            isLoading: homeVM.isLoading,
-                          ),
-                          if (homeVM.errorMessage != null) ...[
-                            const SizedBox(height: 24),
-                            Text(
-                              homeVM.errorMessage!,
-                              style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      delegate: SliverChildListDelegate([
+                        _HomeHeader(userName: homeVM.user.name),
+                        const SizedBox(height: 28),
+                        _SectionTitle(
+                          title: 'Current reading',
+                          actionLabel:
+                              '${homeVM.dashboard?.currentReading.length ?? 0} books',
+                        ),
+                        const SizedBox(height: 16),
+                        _CurrentReadingSection(
+                          books: homeVM.dashboard?.currentReading ?? const [],
+                          isLoading: homeVM.isLoading,
+                        ),
+                        const SizedBox(height: 28),
+                        _SectionTitle(title: 'Streaks'),
+                        const SizedBox(height: 14),
+                        _StreakCard(
+                          streakDays: homeVM.dashboard?.streakDays ?? 0,
+                          activityCount: homeVM.dashboard?.activityCount ?? 0,
+                        ),
+                        const SizedBox(height: 28),
+                        _SectionTitle(
+                          title:
+                              'Finish in ${homeVM.dashboard?.year ?? DateTime.now().year}',
+                        ),
+                        const SizedBox(height: 16),
+                        _FinishedBooksSection(
+                          books: homeVM.dashboard?.finishedInYear ?? const [],
+                          isLoading: homeVM.isLoading,
+                        ),
+                        if (homeVM.errorMessage != null) ...[
+                          const SizedBox(height: 24),
+                          Text(
+                            homeVM.errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
+                          ),
                         ],
-                      ),
+                      ]),
                     ),
                   ),
                 ],
@@ -103,6 +100,23 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({required this.userName});
 
   final String userName;
+
+  void _handleAddBookAction(BuildContext context, AddBookAction action) {
+    final String label = switch (action) {
+      AddBookAction.manual => 'Manual',
+      AddBookAction.searchBook => 'Search Book',
+      AddBookAction.scanIsbn => 'Scan ISBN',
+    };
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('$label option coming soon'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,21 +146,8 @@ class _HomeHeader extends StatelessWidget {
         ),
         const Spacer(),
         const SizedBox(width: 12),
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 28),
+        AddBookMenuButton(
+          onSelected: (action) => _handleAddBookAction(context, action),
         ),
       ],
     );
@@ -154,10 +155,7 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    this.actionLabel,
-  });
+  const _SectionTitle({required this.title, this.actionLabel});
 
   final String title;
   final String? actionLabel;
@@ -190,10 +188,7 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _CurrentReadingSection extends StatelessWidget {
-  const _CurrentReadingSection({
-    required this.books,
-    required this.isLoading,
-  });
+  const _CurrentReadingSection({required this.books, required this.isLoading});
 
   final List<CurrentReadingBook> books;
   final bool isLoading;
@@ -259,7 +254,8 @@ class _ReadingBookCard extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty
+                child:
+                    book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty
                     ? Image.network(
                         book.coverImageUrl!,
                         fit: BoxFit.cover,
@@ -277,7 +273,9 @@ class _ReadingBookCard extends StatelessWidget {
               minHeight: 7,
               value: book.progressPercent <= 0 ? 0.08 : book.progressPercent,
               backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.secondary,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -366,7 +364,11 @@ class _EmptyBookCard extends StatelessWidget {
                 ),
               ),
               child: const Center(
-                child: Icon(Icons.add_rounded, size: 36, color: AppColors.primary),
+                child: Icon(
+                  Icons.add_rounded,
+                  size: 36,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ),
@@ -377,7 +379,9 @@ class _EmptyBookCard extends StatelessWidget {
               minHeight: 7,
               value: 0,
               backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.secondary,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -395,10 +399,7 @@ class _EmptyBookCard extends StatelessWidget {
 }
 
 class _StreakCard extends StatelessWidget {
-  const _StreakCard({
-    required this.streakDays,
-    required this.activityCount,
-  });
+  const _StreakCard({required this.streakDays, required this.activityCount});
 
   final int streakDays;
   final int activityCount;
@@ -413,10 +414,7 @@ class _StreakCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.white,
-            AppColors.primary.withValues(alpha: 0.12),
-          ],
+          colors: [Colors.white, AppColors.primary.withValues(alpha: 0.12)],
         ),
         boxShadow: [
           BoxShadow(
@@ -499,10 +497,7 @@ class _StreakCard extends StatelessWidget {
               ),
               child: const Text(
                 'Start to read',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -513,10 +508,7 @@ class _StreakCard extends StatelessWidget {
 }
 
 class _FinishedBooksSection extends StatelessWidget {
-  const _FinishedBooksSection({
-    required this.books,
-    required this.isLoading,
-  });
+  const _FinishedBooksSection({required this.books, required this.isLoading});
 
   final List<FinishedBook> books;
   final bool isLoading;
