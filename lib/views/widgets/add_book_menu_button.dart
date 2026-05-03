@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
 
-enum AddBookAction { manual, searchBook, scanIsbn }
+enum AddBookAction { manual, scanIsbn }
 
 class AddBookMenuButton extends StatefulWidget {
   const AddBookMenuButton({
@@ -146,11 +146,6 @@ class _AddBookMenuCard extends StatelessWidget {
             label: 'Manual',
             onTap: () => onSelected(AddBookAction.manual),
             isFirst: true,
-          ),
-          _AddBookMenuOption(
-            icon: Icons.search_rounded,
-            label: 'Search Book',
-            onTap: () => onSelected(AddBookAction.searchBook),
           ),
           _AddBookMenuOption(
             icon: Icons.qr_code_scanner_rounded,

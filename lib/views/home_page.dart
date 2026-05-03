@@ -5,8 +5,8 @@ import '../core/constants/app_colors.dart';
 import '../data/models/home_dashboard_model.dart';
 import '../data/models/user_model.dart';
 import '../viewmodels/home_viewmodel.dart';
+import 'manual_add_book_page.dart';
 import 'widgets/add_book_menu_button.dart';
-import 'widgets/app_bottom_bar.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, required this.user, this.token});
@@ -18,13 +18,42 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => HomeViewModel(user: user, token: token)..loadDashboard(),
-      child: const _HomePageView(),
+      child: _HomePageView(user: user, token: token),
     );
   }
 }
 
 class _HomePageView extends StatelessWidget {
-  const _HomePageView();
+  const _HomePageView({required this.user, required this.token});
+
+  final UserModel user;
+  final String? token;
+
+  Future<void> _handleAddBookAction(
+    BuildContext context,
+    HomeViewModel homeVM,
+    AddBookAction action,
+  ) async {
+    switch (action) {
+      case AddBookAction.manual:
+        final created = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ManualAddBookPage(user: user, token: token),
+          ),
+        );
+
+        if (created == true) {
+          await homeVM.loadDashboard();
+        }
+        break;
+      case AddBookAction.scanIsbn:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tính năng quét ISBN đang được phát triển.')),
+        );
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +72,11 @@ class _HomePageView extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
-                        _HomeHeader(userName: homeVM.user.name),
+                        _HomeHeader(
+                          userName: homeVM.user.name,
+                          onAddBookSelected: (action) =>
+                              _handleAddBookAction(context, homeVM, action),
+                        ),
                         const SizedBox(height: 28),
                         _SectionTitle(
                           title: 'Current reading',
@@ -91,32 +124,19 @@ class _HomePageView extends StatelessWidget {
           },
         ),
       ),
-      bottomNavigationBar: const AppBottomBar(currentTab: AppTab.home),
+      bottomNavigationBar: const _HomeBottomBar(),
     );
   }
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.userName});
+  const _HomeHeader({
+    required this.userName,
+    required this.onAddBookSelected,
+  });
 
   final String userName;
-
-  void _handleAddBookAction(BuildContext context, AddBookAction action) {
-    final String label = switch (action) {
-      AddBookAction.manual => 'Manual',
-      AddBookAction.searchBook => 'Search Book',
-      AddBookAction.scanIsbn => 'Scan ISBN',
-    };
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('$label option coming soon'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-  }
+  final ValueChanged<AddBookAction> onAddBookSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -145,10 +165,7 @@ class _HomeHeader extends StatelessWidget {
           ],
         ),
         const Spacer(),
-        const SizedBox(width: 12),
-        AddBookMenuButton(
-          onSelected: (action) => _handleAddBookAction(context, action),
-        ),
+        AddBookMenuButton(onSelected: onAddBookSelected),
       ],
     );
   }
@@ -586,6 +603,84 @@ class _FinishedBookCard extends StatelessWidget {
                     _BookCoverFallback(title: book.title),
               )
             : _BookCoverFallback(title: book.title),
+      ),
+    );
+  }
+}
+
+class _HomeBottomBar extends StatelessWidget {
+  const _HomeBottomBar();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      (Icons.home_rounded, 'Home'),
+      (Icons.local_library_outlined, 'Library'),
+      (Icons.flag_outlined, 'Challenge'),
+      (Icons.bar_chart_rounded, 'Statistic'),
+      (Icons.person_outline_rounded, 'Account'),
+    ];
+
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: List.generate(items.length, (index) {
+            final (icon, label) = items[index];
+            final isSelected = index == 0;
+
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.14)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.darkBrown,
+                        size: 22,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.darkBrown,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
       ),
     );
   }
