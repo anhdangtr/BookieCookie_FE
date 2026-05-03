@@ -264,13 +264,7 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                               });
                             },
                           ),
-                          const SizedBox(height: 18),
-                          const _FieldLabel('Note'),
-                          _BookTextField(
-                            controller: _noteController,
-                            hintText: 'Add your notes',
-                            maxLines: 4,
-                          ),
+
                           const SizedBox(height: 18),
                           const _FieldLabel('Reading Year'),
                           _BookTextField(
@@ -302,6 +296,13 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                             readOnly: true,
                             onTap: () => _pickDate(_finishDateController),
                             suffixIcon: Icons.calendar_month_rounded,
+                          ),
+                          const SizedBox(height: 18),
+                          const _FieldLabel('Note'),
+                          _BookTextField(
+                            controller: _noteController,
+                            hintText: 'Add your notes',
+                            maxLines: 4,
                           ),
                           if (viewModel.errorMessage != null) ...[
                             const SizedBox(height: 18),

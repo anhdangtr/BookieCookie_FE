@@ -41,11 +41,11 @@ class ManualAddBookViewModel extends ChangeNotifier {
           'author': author,
           'status': status,
           'rating': rating,
-          'note': note,
           'reading_year': readingYear,
-          'current_page': currentPage,
           'start_date': startDate,
           'finish_date': finishDate,
+          'current_page': currentPage,
+          'note': note,
         },
         headers: token == null ? null : {'Authorization': 'Bearer $token'},
       );
