@@ -36,7 +36,6 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
   final _authorController = TextEditingController();
   final _noteController = TextEditingController();
   final _readingYearController = TextEditingController();
-  final _currentPageController = TextEditingController(text: '0');
   final _startDateController = TextEditingController();
   final _finishDateController = TextEditingController();
 
@@ -57,7 +56,6 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
     _authorController.dispose();
     _noteController.dispose();
     _readingYearController.dispose();
-    _currentPageController.dispose();
     _startDateController.dispose();
     _finishDateController.dispose();
     super.dispose();
@@ -124,7 +122,6 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
       readingYear: _readingYearController.text.trim().isEmpty
           ? null
           : int.tryParse(_readingYearController.text.trim()),
-      currentPage: int.tryParse(_currentPageController.text.trim()) ?? 0,
       startDate: _startDateController.text.trim().isEmpty
           ? null
           : _startDateController.text.trim(),
@@ -344,13 +341,6 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                           _BookTextField(
                             controller: _readingYearController,
                             hintText: 'e.g. 2026',
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 18),
-                          const _FieldLabel('Current Page'),
-                          _BookTextField(
-                            controller: _currentPageController,
-                            hintText: '0',
                             keyboardType: TextInputType.number,
                           ),
                           const SizedBox(height: 18),
