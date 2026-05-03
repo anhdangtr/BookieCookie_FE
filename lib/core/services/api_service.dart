@@ -87,6 +87,50 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String endpoint, {
+    required Map<String, String> fields,
+    String? fileField,
+    String? filePath,
+    Map<String, String>? headers,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      )
+        ..headers.addAll(headers ?? {})
+        ..fields.addAll(fields);
+
+      if (fileField != null &&
+          filePath != null &&
+          filePath.trim().isNotEmpty) {
+        request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+      }
+
+      final streamedResponse = await request.send().timeout(_timeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _parseResponse(response);
+    } on TimeoutException {
+      throw const ApiException(
+        'Server phản hồi quá lâu. Hãy kiểm tra backend đang chạy và thử lại.',
+      );
+    } on SocketException {
+      throw const ApiException(
+        'Không kết nối được tới server. Nếu đang dùng Android emulator hãy chạy backend ở cổng 5000.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'Kết nối mạng tới server thất bại. Hãy thử lại sau.',
+      );
+    } on FormatException {
+      throw const ApiException(
+        'Server trả về dữ liệu không hợp lệ. Hãy kiểm tra backend đang chạy đúng API JSON.',
+      );
+    }
+  }
+
   Map<String, dynamic> _parseResponse(http.Response response) {
     final dynamic decoded = response.body.isEmpty
         ? <String, dynamic>{}

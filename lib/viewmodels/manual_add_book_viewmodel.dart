@@ -27,26 +27,29 @@ class ManualAddBookViewModel extends ChangeNotifier {
     int currentPage = 0,
     String? startDate,
     String? finishDate,
+    String? coverImagePath,
   }) async {
     isSubmitting = true;
     errorMessage = null;
     notifyListeners();
 
     try {
-      final result = await _apiService.post(
+      final result = await _apiService.postMultipart(
         '/user-books/manual',
-        {
-          'user_id': user.id,
+        fields: {
+          'user_id': user.id.toString(),
           'title': title,
-          'author': author,
+          'author': author ?? '',
           'status': status,
-          'rating': rating,
-          'reading_year': readingYear,
-          'start_date': startDate,
-          'finish_date': finishDate,
-          'current_page': currentPage,
-          'note': note,
+          'rating': rating?.toString() ?? '',
+          'reading_year': readingYear?.toString() ?? '',
+          'start_date': startDate ?? '',
+          'finish_date': finishDate ?? '',
+          'current_page': currentPage.toString(),
+          'note': note ?? '',
         },
+        fileField: 'cover',
+        filePath: coverImagePath,
         headers: token == null ? null : {'Authorization': 'Bearer $token'},
       );
 

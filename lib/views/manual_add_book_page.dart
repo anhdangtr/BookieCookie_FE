@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
 
 import '../core/constants/app_colors.dart';
 import '../data/models/user_model.dart';
@@ -29,6 +31,7 @@ class _ManualAddBookView extends StatefulWidget {
 
 class _ManualAddBookViewState extends State<_ManualAddBookView> {
   final _formKey = GlobalKey<FormState>();
+  final _imagePicker = ImagePicker();
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
   final _noteController = TextEditingController();
@@ -39,6 +42,7 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
 
   String _selectedStatus = 'plan_to_read';
   int? _selectedRating;
+  XFile? _selectedCoverImage;
 
   static const List<_StatusOption> _statusOptions = [
     _StatusOption(value: 'plan_to_read', label: 'Plan to Read'),
@@ -86,6 +90,21 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
     controller.text = pickedDate.toIso8601String().split('T').first;
   }
 
+  Future<void> _pickCoverImage() async {
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (image == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedCoverImage = image;
+    });
+  }
+
   Future<void> _submit(ManualAddBookViewModel viewModel) async {
     final form = _formKey.currentState;
     if (form == null || !form.validate()) {
@@ -112,6 +131,7 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
       finishDate: _finishDateController.text.trim().isEmpty
           ? null
           : _finishDateController.text.trim(),
+      coverImagePath: _selectedCoverImage?.path,
     );
 
     if (!mounted) return;
@@ -157,47 +177,101 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Center(
-                            child: Container(
-                              width: 120,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(28),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.2,
-                                  ),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
+                            child: GestureDetector(
+                              onTap: viewModel.isSubmitting ? null : _pickCoverImage,
+                              child: Container(
+                                width: 120,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
                                     color: AppColors.primary.withValues(
-                                      alpha: 0.10,
+                                      alpha: 0.2,
                                     ),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 14),
                                   ),
-                                ],
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.10,
+                                      ),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 14),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(28),
+                                  child: _selectedCoverImage == null
+                                      ? Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: const [
+                                            Icon(
+                                              Icons.add_photo_alternate_rounded,
+                                              color: AppColors.primary,
+                                              size: 38,
+                                            ),
+                                            SizedBox(height: 10),
+                                            Text(
+                                              'Add\nCover',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: AppColors.darkBlue,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w800,
+                                                height: 1.15,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            Image.file(
+                                              File(_selectedCoverImage!.path),
+                                              fit: BoxFit.cover,
+                                            ),
+                                            Positioned(
+                                              top: 10,
+                                              right: 10,
+                                              child: Container(
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.black54,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: IconButton(
+                                                  onPressed: viewModel.isSubmitting
+                                                      ? null
+                                                      : () {
+                                                          setState(() {
+                                                            _selectedCoverImage = null;
+                                                          });
+                                                        },
+                                                  icon: const Icon(
+                                                    Icons.close_rounded,
+                                                    color: Colors.white,
+                                                  ),
+                                                  iconSize: 18,
+                                                  splashRadius: 18,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(
-                                    Icons.menu_book_rounded,
-                                    color: AppColors.primary,
-                                    size: 38,
-                                  ),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    'Manual\nBook',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: AppColors.darkBlue,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      height: 1.15,
-                                    ),
-                                  ),
-                                ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: viewModel.isSubmitting ? null : _pickCoverImage,
+                              icon: const Icon(Icons.photo_library_rounded),
+                              label: Text(
+                                _selectedCoverImage == null
+                                    ? 'Choose cover from gallery'
+                                    : 'Change cover',
                               ),
                             ),
                           ),
