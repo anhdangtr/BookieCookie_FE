@@ -38,8 +38,6 @@ class CurrentReadingBook {
     required this.bookId,
     required this.title,
     required this.author,
-    required this.currentPage,
-    required this.progressPercent,
     this.coverImageUrl,
   });
 
@@ -47,8 +45,6 @@ class CurrentReadingBook {
   final int bookId;
   final String title;
   final String author;
-  final int currentPage;
-  final double progressPercent;
   final String? coverImageUrl;
 
   factory CurrentReadingBook.fromJson(Map<String, dynamic> json) {
@@ -60,8 +56,6 @@ class CurrentReadingBook {
       bookId: rawBookId is num ? rawBookId.toInt() : int.tryParse('$rawBookId') ?? 0,
       title: json['title'] as String? ?? 'Untitled',
       author: json['author'] as String? ?? 'Unknown author',
-      currentPage: (json['current_page'] as num?)?.toInt() ?? 0,
-      progressPercent: ((json['progress_percent'] as num?)?.toDouble() ?? 0) / 100,
       coverImageUrl: json['cover_image_url'] as String?,
     );
   }

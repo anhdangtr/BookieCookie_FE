@@ -4,26 +4,37 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 
 import '../core/constants/app_colors.dart';
+import '../data/models/google_book_search_result.dart';
 import '../data/models/user_model.dart';
 import '../viewmodels/manual_add_book_viewmodel.dart';
 
+enum AddBookMode { manual, searchOnline }
+
 class ManualAddBookPage extends StatelessWidget {
-  const ManualAddBookPage({super.key, required this.user, this.token});
+  const ManualAddBookPage({
+    super.key,
+    required this.user,
+    this.token,
+    this.initialMode = AddBookMode.manual,
+  });
 
   final UserModel user;
   final String? token;
+  final AddBookMode initialMode;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ManualAddBookViewModel(user: user, token: token),
-      child: const _ManualAddBookView(),
+      child: _ManualAddBookView(initialMode: initialMode),
     );
   }
 }
 
 class _ManualAddBookView extends StatefulWidget {
-  const _ManualAddBookView();
+  const _ManualAddBookView({required this.initialMode});
+
+  final AddBookMode initialMode;
 
   @override
   State<_ManualAddBookView> createState() => _ManualAddBookViewState();
@@ -38,10 +49,13 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
   final _readingYearController = TextEditingController();
   final _startDateController = TextEditingController();
   final _finishDateController = TextEditingController();
+  final _onlineSearchController = TextEditingController();
 
+  late AddBookMode _selectedMode;
   String _selectedStatus = 'plan_to_read';
   int? _selectedRating;
   XFile? _selectedCoverImage;
+  String? _selectedOnlineCoverUrl;
 
   static const List<_StatusOption> _statusOptions = [
     _StatusOption(value: 'plan_to_read', label: 'Plan to Read'),
@@ -51,6 +65,12 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _selectedMode = widget.initialMode;
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _authorController.dispose();
@@ -58,6 +78,7 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
     _readingYearController.dispose();
     _startDateController.dispose();
     _finishDateController.dispose();
+    _onlineSearchController.dispose();
     super.dispose();
   }
 
@@ -100,7 +121,24 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
 
     setState(() {
       _selectedCoverImage = image;
+      _selectedOnlineCoverUrl = null;
     });
+  }
+
+  void _applyOnlineBook(GoogleBookSearchResult book) {
+    setState(() {
+      _titleController.text = book.title;
+      _authorController.text = book.authors.join(', ');
+      _selectedOnlineCoverUrl = book.thumbnailUrl?.replaceFirst('http://', 'https://');
+      _selectedCoverImage = null;
+      _selectedMode = AddBookMode.manual;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Da chon "${book.title}" va dien san thong tin vao form.'),
+      ),
+    );
   }
 
   Future<void> _submit(ManualAddBookViewModel viewModel) async {
@@ -173,6 +211,24 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _ModeSwitcher(
+                            selectedMode: _selectedMode,
+                            onChanged: (mode) {
+                              setState(() {
+                                _selectedMode = mode;
+                              });
+                            },
+                          ),
+                          if (_selectedMode == AddBookMode.searchOnline) ...[
+                            const SizedBox(height: 22),
+                            _OnlineSearchSection(
+                              controller: _onlineSearchController,
+                              viewModel: viewModel,
+                              onBookSelected: _applyOnlineBook,
+                            ),
+                            const SizedBox(height: 28),
+                          ] else
+                            const SizedBox(height: 10),
                           Center(
                             child: GestureDetector(
                               onTap: viewModel.isSubmitting ? null : _pickCoverImage,
@@ -199,63 +255,7 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(28),
-                                  child: _selectedCoverImage == null
-                                      ? Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: const [
-                                            Icon(
-                                              Icons.add_photo_alternate_rounded,
-                                              color: AppColors.primary,
-                                              size: 38,
-                                            ),
-                                            SizedBox(height: 10),
-                                            Text(
-                                              'Add\nCover',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                color: AppColors.darkBlue,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w800,
-                                                height: 1.15,
-                                              ),
-                                            ),
-                                          ],
-                                        )
-                                      : Stack(
-                                          fit: StackFit.expand,
-                                          children: [
-                                            Image.file(
-                                              File(_selectedCoverImage!.path),
-                                              fit: BoxFit.cover,
-                                            ),
-                                            Positioned(
-                                              top: 10,
-                                              right: 10,
-                                              child: Container(
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.black54,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: IconButton(
-                                                  onPressed: viewModel.isSubmitting
-                                                      ? null
-                                                      : () {
-                                                          setState(() {
-                                                            _selectedCoverImage = null;
-                                                          });
-                                                        },
-                                                  icon: const Icon(
-                                                    Icons.close_rounded,
-                                                    color: Colors.white,
-                                                  ),
-                                                  iconSize: 18,
-                                                  splashRadius: 18,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                  child: _buildCoverPreview(viewModel),
                                 ),
                               ),
                             ),
@@ -267,7 +267,9 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                               icon: const Icon(Icons.photo_library_rounded),
                               label: Text(
                                 _selectedCoverImage == null
-                                    ? 'Choose cover from gallery'
+                                    ? _selectedOnlineCoverUrl == null
+                                        ? 'Choose cover from gallery'
+                                        : 'Replace online cover'
                                     : 'Change cover',
                               ),
                             ),
@@ -426,6 +428,405 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyCover() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: const [
+        Icon(
+          Icons.add_photo_alternate_rounded,
+          color: AppColors.primary,
+          size: 38,
+        ),
+        SizedBox(height: 10),
+        Text(
+          'Add\nCover',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.darkBlue,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            height: 1.15,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCoverPreview(ManualAddBookViewModel viewModel) {
+    if (_selectedCoverImage != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(
+            File(_selectedCoverImage!.path),
+            fit: BoxFit.cover,
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: viewModel.isSubmitting
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedCoverImage = null;
+                        });
+                      },
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                ),
+                iconSize: 18,
+                splashRadius: 18,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_selectedOnlineCoverUrl != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            _selectedOnlineCoverUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildEmptyCover(),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: viewModel.isSubmitting
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedOnlineCoverUrl = null;
+                        });
+                      },
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                ),
+                iconSize: 18,
+                splashRadius: 18,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return _buildEmptyCover();
+  }
+}
+
+class _ModeSwitcher extends StatelessWidget {
+  const _ModeSwitcher({
+    required this.selectedMode,
+    required this.onChanged,
+  });
+
+  final AddBookMode selectedMode;
+  final ValueChanged<AddBookMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ModeChip(
+              label: 'Manual',
+              isSelected: selectedMode == AddBookMode.manual,
+              onTap: () => onChanged(AddBookMode.manual),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ModeChip(
+              label: 'Search online',
+              isSelected: selectedMode == AddBookMode.searchOnline,
+              onTap: () => onChanged(AddBookMode.searchOnline),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  const _ModeChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.darkBlue,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnlineSearchSection extends StatelessWidget {
+  const _OnlineSearchSection({
+    required this.controller,
+    required this.viewModel,
+    required this.onBookSelected,
+  });
+
+  final TextEditingController controller;
+  final ManualAddBookViewModel viewModel;
+  final ValueChanged<GoogleBookSearchResult> onBookSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _FieldLabel('Search from Google Books'),
+        Row(
+          children: [
+            Expanded(
+              child: _BookTextField(
+                controller: controller,
+                hintText: 'Search by title or author',
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: viewModel.isSearchingOnline
+                    ? null
+                    : () => viewModel.searchBooksOnline(controller.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.darkBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 0,
+                ),
+                child: viewModel.isSearchingOnline
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.search_rounded),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Ket qua lien quan se duoc lay tu Google Books API.',
+          style: TextStyle(
+            color: AppColors.darkBrown.withValues(alpha: 0.72),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (viewModel.searchErrorMessage != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            viewModel.searchErrorMessage!,
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+        if (viewModel.searchResults.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: viewModel.searchResults.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final book = viewModel.searchResults[index];
+              return _OnlineBookCard(
+                book: book,
+                onTap: () => onBookSelected(book),
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _OnlineBookCard extends StatelessWidget {
+  const _OnlineBookCard({
+    required this.book,
+    required this.onTap,
+  });
+
+  final GoogleBookSearchResult book;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final coverUrl = book.thumbnailUrl?.replaceFirst('http://', 'https://');
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: 62,
+                  height: 92,
+                  child: coverUrl == null
+                      ? Container(
+                          color: AppColors.primary.withValues(alpha: 0.10),
+                          child: const Icon(
+                            Icons.menu_book_rounded,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : Image.network(
+                          coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: AppColors.primary.withValues(alpha: 0.10),
+                            child: const Icon(
+                              Icons.menu_book_rounded,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      book.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.darkBlue,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      book.authorText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.darkBrown.withValues(alpha: 0.82),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (book.publishedDate != null &&
+                        book.publishedDate!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Published: ${book.publishedDate}',
+                        style: TextStyle(
+                          color: AppColors.darkBrown.withValues(alpha: 0.70),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Text(
+                      'Tap de dien vao form',
+                      style: TextStyle(
+                        color: AppColors.primary.withValues(alpha: 0.92),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

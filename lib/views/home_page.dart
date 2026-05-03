@@ -47,6 +47,22 @@ class _HomePageView extends StatelessWidget {
           await homeVM.loadDashboard();
         }
         break;
+      case AddBookAction.searchOnline:
+        final created = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ManualAddBookPage(
+              user: user,
+              token: token,
+              initialMode: AddBookMode.searchOnline,
+            ),
+          ),
+        );
+
+        if (created == true) {
+          await homeVM.loadDashboard();
+        }
+        break;
       case AddBookAction.scanIsbn:
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tính năng quét ISBN đang được phát triển.')),
@@ -283,18 +299,6 @@ class _ReadingBookCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 7,
-              value: book.progressPercent <= 0 ? 0.08 : book.progressPercent,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                AppColors.secondary,
-              ),
-            ),
-          ),
           const SizedBox(height: 8),
           Text(
             book.title,
@@ -303,14 +307,6 @@ class _ReadingBookCard extends StatelessWidget {
             style: const TextStyle(
               color: AppColors.darkBlue,
               fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            'Page ${book.currentPage}',
-            style: TextStyle(
-              color: AppColors.darkBrown.withValues(alpha: 0.75),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],

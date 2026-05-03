@@ -24,10 +24,7 @@ class ApiService {
   }) async {
     try {
       final response = await http
-          .get(
-            Uri.parse('$baseUrl$endpoint'),
-            headers: headers,
-          )
+          .get(Uri.parse('$baseUrl$endpoint'), headers: headers)
           .timeout(_timeout);
 
       return _parseResponse(response);
@@ -46,6 +43,35 @@ class ApiService {
     } on FormatException {
       throw const ApiException(
         'Server trả về dữ liệu không hợp lệ. Hãy kiểm tra backend đang chạy đúng API JSON.',
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> getByUrl(
+    String url, {
+    Map<String, String>? headers,
+  }) async {
+    try {
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(_timeout);
+
+      return _parseResponse(response);
+    } on TimeoutException {
+      throw const ApiException(
+        'Yeu cau toi dich vu sach online qua lau. Hay thu lai sau.',
+      );
+    } on SocketException {
+      throw const ApiException(
+        'Khong the ket noi toi Google Books API. Hay kiem tra mang va thu lai.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'Ket noi toi Google Books API that bai. Hay thu lai sau.',
+      );
+    } on FormatException {
+      throw const ApiException(
+        'Google Books API tra ve du lieu khong hop le.',
       );
     }
   }

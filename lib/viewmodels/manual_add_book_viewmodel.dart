@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/services/api_service.dart';
+import '../data/models/google_book_search_result.dart';
 import '../data/models/user_model.dart';
 
 class ManualAddBookViewModel extends ChangeNotifier {
@@ -15,7 +16,10 @@ class ManualAddBookViewModel extends ChangeNotifier {
   final String? token;
 
   bool isSubmitting = false;
+  bool isSearchingOnline = false;
   String? errorMessage;
+  String? searchErrorMessage;
+  List<GoogleBookSearchResult> searchResults = const [];
 
   Future<bool> createBook({
     required String title,
@@ -65,5 +69,47 @@ class ManualAddBookViewModel extends ChangeNotifier {
     isSubmitting = false;
     notifyListeners();
     return false;
+  }
+
+  Future<void> searchBooksOnline(String keyword) async {
+    final trimmedKeyword = keyword.trim();
+    if (trimmedKeyword.isEmpty) {
+      searchResults = const [];
+      searchErrorMessage = null;
+      notifyListeners();
+      return;
+    }
+
+    isSearchingOnline = true;
+    searchErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final query = Uri.encodeQueryComponent(trimmedKeyword);
+      final result = await _apiService.getByUrl(
+        'https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=10&printType=books',
+      );
+
+      final items = result['items'];
+      if (items is List) {
+        searchResults = items
+            .whereType<Map>()
+            .map((item) => GoogleBookSearchResult.fromJson(Map<String, dynamic>.from(item)))
+            .where((book) => book.title.trim().isNotEmpty)
+            .toList();
+      } else {
+        searchResults = const [];
+      }
+
+      if (searchResults.isEmpty) {
+        searchErrorMessage = 'Khong tim thay sach phu hop voi tu khoa nay.';
+      }
+    } catch (error) {
+      searchResults = const [];
+      searchErrorMessage = error.toString().replaceFirst('Exception: ', '');
+    }
+
+    isSearchingOnline = false;
+    notifyListeners();
   }
 }
