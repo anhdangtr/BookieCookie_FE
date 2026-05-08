@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
 import '../data/models/user_model.dart';
+import '../viewmodels/account_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'home_page.dart';
 import 'library_page.dart';
@@ -63,116 +64,162 @@ class AccountPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bio = (user.bio?.trim().isNotEmpty ?? false)
-        ? user.bio!.trim()
-        : 'Book lover building a cozy reading journey one page at a time.';
+    return ChangeNotifierProvider(
+      create: (_) =>
+          AccountViewModel(initialUser: user, token: token)..loadProfile(),
+      child: Consumer<AccountViewModel>(
+        builder: (context, accountVM, _) {
+          final profile = accountVM.displayUser;
+          final bio = (profile.bio?.trim().isNotEmpty ?? false)
+              ? profile.bio!.trim()
+              : 'Book lover building a cozy reading journey one page at a time.';
 
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const _AccountHeader(),
-                  const SizedBox(height: 20),
-                  _ProfileHeroCard(user: user, bio: bio),
-                  const SizedBox(height: 28),
-                  const _SectionDivider(),
-                  const SizedBox(height: 28),
-                  _InfoCard(
-                    title: 'About',
-                    children: [
-                      _InfoRow(
-                        icon: Icons.badge_outlined,
-                        label: 'Display name',
-                        value: user.name,
-                      ),
-                      _InfoRow(
-                        icon: Icons.mail_outline_rounded,
-                        label: 'Email',
-                        value: user.email,
-                      ),
-                      _InfoRow(
-                        icon: Icons.auto_stories_outlined,
-                        label: 'Bio',
-                        value: bio,
-                        multiline: true,
-                      ),
-                    ],
+          return Scaffold(
+            backgroundColor: AppColors.cream,
+            body: SafeArea(
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: accountVM.loadProfile,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
-                  const SizedBox(height: 20),
-                  _InfoCard(
-                    title: 'Reading vibe',
-                    children: const [
-                      _TagWrap(
-                        tags: [
-                          'Cozy reader',
-                          'Book tracker',
-                          'Goal chaser',
-                          'Cookie mood',
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Chỉnh sửa hồ sơ sẽ được bổ sung ở bước tiếp theo.',
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          const _AccountHeader(),
+                          const SizedBox(height: 20),
+                          if (accountVM.isLoading)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 20),
+                              child: LinearProgressIndicator(
+                                color: AppColors.primary,
+                                backgroundColor: Color(0x1AFFA726),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(999),
+                                ),
+                              ),
+                            ),
+                          _ProfileHeroCard(user: profile, bio: bio),
+                          const SizedBox(height: 28),
+                          const _SectionDivider(),
+                          const SizedBox(height: 28),
+                          if (accountVM.errorMessage != null) ...[
+                            _InfoCard(
+                              title: 'Thông báo',
+                              children: [
+                                Text(
+                                  accountVM.errorMessage!,
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          _InfoCard(
+                            title: 'About',
+                            children: [
+                              _InfoRow(
+                                icon: Icons.badge_outlined,
+                                label: 'Display name',
+                                value: profile.name,
+                              ),
+                              _InfoRow(
+                                icon: Icons.mail_outline_rounded,
+                                label: 'Email',
+                                value: profile.email,
+                              ),
+                              _InfoRow(
+                                icon: Icons.auto_stories_outlined,
+                                label: 'Bio',
+                                value: bio,
+                                multiline: true,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _InfoCard(
+                            title: 'Reading vibe',
+                            children: const [
+                              _TagWrap(
+                                tags: [
+                                  'Cozy reader',
+                                  'Book tracker',
+                                  'Goal chaser',
+                                  'Cookie mood',
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 28),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Chỉnh sửa hồ sơ sẽ được bổ sung ở bước tiếp theo.',
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('Chỉnh sửa hồ sơ'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.accent,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                side: const BorderSide(
+                                  color: AppColors.accent,
+                                  width: 1.4,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                backgroundColor: AppColors.surface,
+                              ),
                             ),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Chỉnh sửa hồ sơ'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.accent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(
-                          color: AppColors.accent,
-                          width: 1.4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        backgroundColor: AppColors.surface,
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _handleLogout(context),
+                              icon: const Icon(Icons.logout_rounded),
+                              label: const Text('Log out'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.secondary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 18,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ]),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _handleLogout(context),
-                      icon: const Icon(Icons.logout_rounded),
-                      label: const Text('Log out'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                    ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: AppBottomBar(
-        currentTab: AppTab.account,
-        onTabSelected: (tab) => _handleTabSelection(context, tab),
+            bottomNavigationBar: AppBottomBar(
+              currentTab: AppTab.account,
+              onTabSelected: (tab) => _handleTabSelection(context, tab),
+            ),
+          );
+        },
       ),
     );
   }
