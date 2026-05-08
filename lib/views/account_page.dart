@@ -5,6 +5,7 @@ import '../core/constants/app_colors.dart';
 import '../data/models/user_model.dart';
 import '../viewmodels/account_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import 'edit_profile_page.dart';
 import 'home_page.dart';
 import 'library_page.dart';
 import 'login_page.dart';
@@ -17,13 +18,17 @@ class AccountPage extends StatelessWidget {
   final UserModel user;
   final String? token;
 
-  void _handleTabSelection(BuildContext context, AppTab tab) {
+  void _handleTabSelection(
+    BuildContext context,
+    AppTab tab,
+    UserModel activeUser,
+  ) {
     switch (tab) {
       case AppTab.home:
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => HomePage(user: user, token: token),
+            builder: (_) => HomePage(user: activeUser, token: token),
           ),
         );
         break;
@@ -31,7 +36,7 @@ class AccountPage extends StatelessWidget {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => LibraryPage(user: user, token: token),
+            builder: (_) => LibraryPage(user: activeUser, token: token),
           ),
         );
         break;
@@ -39,7 +44,7 @@ class AccountPage extends StatelessWidget {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => StatisticPage(user: user, token: token),
+            builder: (_) => StatisticPage(user: activeUser, token: token),
           ),
         );
         break;
@@ -103,10 +108,8 @@ class AccountPage extends StatelessWidget {
                               ),
                             ),
                           _ProfileHeroCard(user: profile, bio: bio),
-                          const SizedBox(height: 28),
-                          const _SectionDivider(),
-                          const SizedBox(height: 28),
                           if (accountVM.errorMessage != null) ...[
+                            const SizedBox(height: 20),
                             _InfoCard(
                               title: 'Thông báo',
                               children: [
@@ -120,55 +123,28 @@ class AccountPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
                           ],
-                          _InfoCard(
-                            title: 'About',
-                            children: [
-                              _InfoRow(
-                                icon: Icons.badge_outlined,
-                                label: 'Display name',
-                                value: profile.name,
-                              ),
-                              _InfoRow(
-                                icon: Icons.mail_outline_rounded,
-                                label: 'Email',
-                                value: profile.email,
-                              ),
-                              _InfoRow(
-                                icon: Icons.auto_stories_outlined,
-                                label: 'Bio',
-                                value: bio,
-                                multiline: true,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          _InfoCard(
-                            title: 'Reading vibe',
-                            children: const [
-                              _TagWrap(
-                                tags: [
-                                  'Cozy reader',
-                                  'Book tracker',
-                                  'Goal chaser',
-                                  'Cookie mood',
-                                ],
-                              ),
-                            ],
-                          ),
                           const SizedBox(height: 28),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Chỉnh sửa hồ sơ sẽ được bổ sung ở bước tiếp theo.',
-                                    ),
-                                  ),
-                                );
+                              onPressed: () async {
+                                final updatedUser =
+                                    await Navigator.push<UserModel>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EditProfilePage(
+                                          user: profile,
+                                          token: token,
+                                        ),
+                                      ),
+                                    );
+
+                                if (updatedUser != null && context.mounted) {
+                                  context.read<AuthViewModel>().currentUser =
+                                      updatedUser;
+                                  await accountVM.loadProfile();
+                                }
                               },
                               icon: const Icon(Icons.edit_outlined),
                               label: const Text('Chỉnh sửa hồ sơ'),
@@ -216,7 +192,8 @@ class AccountPage extends StatelessWidget {
             ),
             bottomNavigationBar: AppBottomBar(
               currentTab: AppTab.account,
-              onTabSelected: (tab) => _handleTabSelection(context, tab),
+              onTabSelected: (tab) =>
+                  _handleTabSelection(context, tab, profile),
             ),
           );
         },
@@ -401,62 +378,6 @@ class _AvatarFallback extends StatelessWidget {
   }
 }
 
-class _SectionDivider extends StatelessWidget {
-  const _SectionDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: CustomPaint(
-        painter: _WaveDividerPainter(),
-        child: const SizedBox.expand(),
-      ),
-    );
-  }
-}
-
-class _WaveDividerPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.darkBrown.withValues(alpha: 0.72)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path()
-      ..moveTo(0, size.height * 0.65)
-      ..quadraticBezierTo(
-        size.width * 0.20,
-        size.height * 0.25,
-        size.width * 0.38,
-        size.height * 0.55,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.58,
-        size.height * 0.88,
-        size.width * 0.76,
-        size.height * 0.46,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.90,
-        size.height * 0.20,
-        size.width,
-        size.height * 0.52,
-      );
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 class _InfoCard extends StatelessWidget {
   const _InfoCard({required this.title, required this.children});
 
@@ -495,101 +416,6 @@ class _InfoCard extends StatelessWidget {
           ...children,
         ],
       ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.multiline = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool multiline;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: multiline ? 0 : 14),
-      child: Row(
-        crossAxisAlignment: multiline
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: AppColors.darkBrown.withValues(alpha: 0.74),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: AppColors.darkBlue,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TagWrap extends StatelessWidget {
-  const _TagWrap({required this.tags});
-
-  final List<String> tags;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: tags
-          .map(
-            (tag) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                tag,
-                style: const TextStyle(
-                  color: AppColors.accent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 }
