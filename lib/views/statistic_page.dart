@@ -889,45 +889,48 @@ class _DayStat {
 }
 
 _TodayGoalData _buildTodayGoal(HomeDashboardModel? dashboard) {
-  final currentReadingCount = dashboard?.currentReading.length ?? 0;
-  final activityCount = dashboard?.activityCount ?? 0;
-  final minutes = math.min(120, currentReadingCount * 8 + activityCount * 2);
-  final normalizedMinutes = minutes == 0 && currentReadingCount > 0
-      ? 10
-      : minutes;
+  final todayStats = dashboard?.statistics?.today;
+  final minutes = todayStats?.minutes ?? 0;
+  final progress = todayStats?.goalMinutes == null || todayStats!.goalMinutes <= 0
+      ? 0.0
+      : todayStats.progress.clamp(0, 1).toDouble();
 
   return _TodayGoalData(
-    minutes: normalizedMinutes,
-    progress: (normalizedMinutes / 30).clamp(0, 1),
+    minutes: minutes,
+    progress: progress,
   );
 }
 
 List<_DayStat> _buildWeekStats(HomeDashboardModel? dashboard) {
   const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  final streakDays = dashboard?.streakDays ?? 0;
-  final activityCount = dashboard?.activityCount ?? 0;
-  final currentReadingCount = dashboard?.currentReading.length ?? 0;
-  final base = currentReadingCount * 4 + activityCount;
-  final todayIndex = DateTime.now().weekday - 1;
+  final weekStats = dashboard?.statistics?.week ?? const <WeekdayStatistics>[];
 
-  return List.generate(labels.length, (index) {
-    final distance = (todayIndex - index).abs();
-    final minutes = math.max(
-      0,
-      base + (streakDays > 0 ? 6 - distance * 2 : 0) + (index.isEven ? 2 : -1),
-    );
+  if (weekStats.isNotEmpty) {
+    return weekStats
+        .map(
+          (item) => _DayStat(
+            label: item.label,
+            shortLabel: item.shortLabel,
+            minutes: item.minutes,
+          ),
+        )
+        .toList();
+  }
 
-    return _DayStat(
-      label: labels[index],
-      shortLabel: labels[index].substring(0, 2),
-      minutes: minutes,
-    );
-  });
+  return labels
+      .map(
+        (label) => _DayStat(
+          label: label,
+          shortLabel: label.substring(0, 2),
+          minutes: 0,
+        ),
+      )
+      .toList();
 }
 
 int _buildYearlyGoal(HomeDashboardModel? dashboard) {
-  final finishedCount = dashboard?.finishedInYear.length ?? 0;
-  return math.max(6, math.max(finishedCount + 3, 12));
+  final goal = dashboard?.statistics?.year.yearlyGoalBooks ?? 0;
+  return goal;
 }
 
 ChallengeOverview _buildChallengeOverview(HomeDashboardModel? dashboard) {
@@ -938,81 +941,22 @@ ChallengeOverview _buildChallengeOverview(HomeDashboardModel? dashboard) {
   if (dashboard == null) {
     return fallback;
   }
-
-  final estimatedMinutes =
-      dashboard.currentReading.length * 120 + dashboard.activityCount * 18;
-  final yearStart = DateTime(year, 1, 1);
-  final yearEnd = DateTime(year, 12, 31);
-  final elapsedDays = now.difference(yearStart).inDays + 1;
-  final safeElapsedDays = math.max(1, elapsedDays);
-  final today = DateTime(now.year, now.month, now.day);
-  final activityLevels = <int>[];
-  var activeDays = 0;
-
-  for (
-    var date = yearStart;
-    !date.isAfter(yearEnd);
-    date = date.add(const Duration(days: 1))
-  ) {
-    if (date.isAfter(today)) {
-      activityLevels.add(0);
-      continue;
-    }
-
-    final dayOfYear = date.difference(yearStart).inDays + 1;
-    final weekdayWeight = switch (date.weekday) {
-      DateTime.saturday || DateTime.sunday => 1,
-      DateTime.friday => 2,
-      _ => 3,
-    };
-    final rhythmSeed =
-        dayOfYear +
-        dashboard.activityCount * 3 +
-        dashboard.currentReading.length * 5 +
-        dashboard.finishedInYear.length * 7;
-    final rhythmValue = rhythmSeed % 10;
-    var level = 0;
-
-    if (rhythmValue < weekdayWeight + 2) {
-      level = 1;
-    }
-    if (rhythmValue < weekdayWeight) {
-      level = 2;
-    }
-    if (rhythmValue == 0 || rhythmValue == 1) {
-      level = 3;
-    }
-    if (dashboard.streakDays > 0 &&
-        dayOfYear >= elapsedDays - dashboard.streakDays + 1) {
-      level = 4;
-    }
-
-    if (dashboard.currentReading.isNotEmpty &&
-        date.weekday <= DateTime.friday &&
-        level == 0 &&
-        rhythmValue.isEven) {
-      level = 1;
-    }
-
-    activityLevels.add(level);
-    if (level > 0) {
-      activeDays++;
-    }
+  final yearStats = dashboard.statistics?.year;
+  if (yearStats == null) {
+    return fallback;
   }
 
   return ChallengeOverview(
     year: year,
-    readingHours: (estimatedMinutes / 60).floor(),
-    booksFinished: dashboard.finishedInYear.length,
+    readingHours: yearStats.readingHours,
+    booksFinished: yearStats.booksFinished,
     streakDays: dashboard.streakDays,
-    quotesSaved: dashboard.activityCount * 2,
-    currentReadingCount: dashboard.currentReading.length,
-    activeDays: activeDays,
-    completionRate: (activeDays / safeElapsedDays).clamp(0.0, 1.0),
-    highlightedBookTitle: dashboard.finishedInYear.isNotEmpty
-        ? dashboard.finishedInYear.first.title
-        : null,
-    yearlyActivityLevels: activityLevels,
+    quotesSaved: yearStats.quotesSaved,
+    currentReadingCount: yearStats.currentReadingCount,
+    activeDays: yearStats.activeDays,
+    completionRate: yearStats.completionRate,
+    highlightedBookTitle: yearStats.highlightedBookTitle,
+    yearlyActivityLevels: yearStats.yearlyActivityLevels,
   );
 }
 
