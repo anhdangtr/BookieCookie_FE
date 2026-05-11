@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
+import '../data/models/achievement_model.dart';
 import '../data/models/home_dashboard_model.dart';
 import '../data/models/user_model.dart';
 import '../viewmodels/home_viewmodel.dart';
@@ -99,6 +100,7 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
             final selectedStat = weekStats[_selectedDayIndex];
             final minuteGoal = _buildTodayGoal(dashboard);
             final yearlyGoal = _buildYearlyGoal(dashboard);
+            final overview = _buildChallengeOverview(dashboard);
             return RefreshIndicator(
               color: AppColors.primary,
               onRefresh: homeVM.loadDashboard,
@@ -127,6 +129,8 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
                             });
                           },
                         ),
+                        const SizedBox(height: 28),
+                        _YearReadingCard(overview: overview),
                         const SizedBox(height: 28),
                         _YearlyOverviewCard(
                           year: dashboard?.year ?? DateTime.now().year,
@@ -171,6 +175,165 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
       bottomNavigationBar: AppBottomBar(
         currentTab: AppTab.statistic,
         onTabSelected: (tab) => _handleTabSelection(context, tab),
+      ),
+    );
+  }
+}
+
+class _YearReadingCard extends StatelessWidget {
+  const _YearReadingCard({required this.overview});
+
+  final ChallengeOverview overview;
+
+  static const double _cellSize = 14;
+  static const double _cellGap = 5;
+  static const double _columnWidth = _cellSize + _cellGap;
+
+  @override
+  Widget build(BuildContext context) {
+    final monthOffsets = _buildMonthOffsets(overview.year);
+    final activityColumns = _buildActivityColumns(overview);
+    final gridWidth = activityColumns.length * _columnWidth;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Text('📖', style: TextStyle(fontSize: 22)),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Reading',
+                  style: TextStyle(
+                    color: AppColors.darkBlue,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              _MetricPill(
+                icon: Icons.av_timer_rounded,
+                label: '${(overview.completionRate * 100).round()}%',
+              ),
+              const SizedBox(width: 10),
+              _MetricPill(
+                icon: Icons.verified_rounded,
+                label: '${overview.activeDays}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: gridWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 24,
+                    child: Stack(
+                      children: monthOffsets.entries.map((entry) {
+                        return Positioned(
+                          left: entry.value * _columnWidth,
+                          child: Text(
+                            entry.key,
+                            style: TextStyle(
+                              color: AppColors.darkBrown.withValues(alpha: 0.7),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: activityColumns.map((column) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: _cellGap),
+                        child: Column(
+                          children: List.generate(column.length, (index) {
+                            final level = column[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: _cellGap),
+                              child: Container(
+                                width: _cellSize,
+                                height: _cellSize,
+                                decoration: BoxDecoration(
+                                  color: _heatmapColor(level),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricPill extends StatelessWidget {
+  const _MetricPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.cream,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: AppColors.darkBrown),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.darkBrown,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -765,4 +928,149 @@ List<_DayStat> _buildWeekStats(HomeDashboardModel? dashboard) {
 int _buildYearlyGoal(HomeDashboardModel? dashboard) {
   final finishedCount = dashboard?.finishedInYear.length ?? 0;
   return math.max(6, math.max(finishedCount + 3, 12));
+}
+
+ChallengeOverview _buildChallengeOverview(HomeDashboardModel? dashboard) {
+  final now = DateTime.now();
+  final year = dashboard?.year ?? now.year;
+  final fallback = ChallengeOverview.empty();
+
+  if (dashboard == null) {
+    return fallback;
+  }
+
+  final estimatedMinutes =
+      dashboard.currentReading.length * 120 + dashboard.activityCount * 18;
+  final yearStart = DateTime(year, 1, 1);
+  final yearEnd = DateTime(year, 12, 31);
+  final elapsedDays = now.difference(yearStart).inDays + 1;
+  final safeElapsedDays = math.max(1, elapsedDays);
+  final today = DateTime(now.year, now.month, now.day);
+  final activityLevels = <int>[];
+  var activeDays = 0;
+
+  for (
+    var date = yearStart;
+    !date.isAfter(yearEnd);
+    date = date.add(const Duration(days: 1))
+  ) {
+    if (date.isAfter(today)) {
+      activityLevels.add(0);
+      continue;
+    }
+
+    final dayOfYear = date.difference(yearStart).inDays + 1;
+    final weekdayWeight = switch (date.weekday) {
+      DateTime.saturday || DateTime.sunday => 1,
+      DateTime.friday => 2,
+      _ => 3,
+    };
+    final rhythmSeed =
+        dayOfYear +
+        dashboard.activityCount * 3 +
+        dashboard.currentReading.length * 5 +
+        dashboard.finishedInYear.length * 7;
+    final rhythmValue = rhythmSeed % 10;
+    var level = 0;
+
+    if (rhythmValue < weekdayWeight + 2) {
+      level = 1;
+    }
+    if (rhythmValue < weekdayWeight) {
+      level = 2;
+    }
+    if (rhythmValue == 0 || rhythmValue == 1) {
+      level = 3;
+    }
+    if (dashboard.streakDays > 0 &&
+        dayOfYear >= elapsedDays - dashboard.streakDays + 1) {
+      level = 4;
+    }
+
+    if (dashboard.currentReading.isNotEmpty &&
+        date.weekday <= DateTime.friday &&
+        level == 0 &&
+        rhythmValue.isEven) {
+      level = 1;
+    }
+
+    activityLevels.add(level);
+    if (level > 0) {
+      activeDays++;
+    }
+  }
+
+  return ChallengeOverview(
+    year: year,
+    readingHours: (estimatedMinutes / 60).floor(),
+    booksFinished: dashboard.finishedInYear.length,
+    streakDays: dashboard.streakDays,
+    quotesSaved: dashboard.activityCount * 2,
+    currentReadingCount: dashboard.currentReading.length,
+    activeDays: activeDays,
+    completionRate: (activeDays / safeElapsedDays).clamp(0.0, 1.0),
+    highlightedBookTitle: dashboard.finishedInYear.isNotEmpty
+        ? dashboard.finishedInYear.first.title
+        : null,
+    yearlyActivityLevels: activityLevels,
+  );
+}
+
+Map<String, int> _buildMonthOffsets(int year) {
+  const monthLabels = [
+    'J',
+    'F',
+    'M',
+    'A',
+    'M',
+    'J',
+    'J',
+    'A',
+    'S',
+    'O',
+    'N',
+    'D',
+  ];
+  final offsets = <String, int>{};
+
+  for (var month = 1; month <= 12; month++) {
+    final firstDay = DateTime(year, month, 1);
+    final weekIndex =
+        ((firstDay.difference(DateTime(year, 1, 1)).inDays) +
+            DateTime(year, 1, 1).weekday -
+            1) ~/
+        7;
+    offsets[monthLabels[month - 1]] = weekIndex;
+  }
+
+  return offsets;
+}
+
+List<List<int>> _buildActivityColumns(ChallengeOverview overview) {
+  final columns = List.generate(53, (_) => List<int>.filled(7, 0));
+  final start = DateTime(overview.year, 1, 1);
+
+  for (var index = 0; index < overview.yearlyActivityLevels.length; index++) {
+    final date = start.add(Duration(days: index));
+    final column = ((index + start.weekday - 1) ~/ 7).clamp(0, 52);
+    final row = date.weekday - 1;
+    columns[column][row] = overview.yearlyActivityLevels[index];
+  }
+
+  return columns;
+}
+
+Color _heatmapColor(int level) {
+  switch (level) {
+    case 4:
+      return const Color(0xFF1473E6);
+    case 3:
+      return const Color(0xFF1E88FF);
+    case 2:
+      return const Color(0xFF53A8FF);
+    case 1:
+      return const Color(0xFFA5D0FF);
+    default:
+      return const Color(0xFFF1F3F7);
+  }
 }
