@@ -264,59 +264,71 @@ class _YearReadingCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: gridWidth,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 24,
-                    child: Stack(
-                      children: monthOffsets.entries.map((entry) {
-                        return Positioned(
-                          left: entry.value * _columnWidth,
-                          child: Text(
-                            entry.key,
-                            style: TextStyle(
-                              color: AppColors.darkBrown.withValues(alpha: 0.7),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: activityColumns.map((column) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: _cellGap),
-                        child: Column(
-                          children: List.generate(column.length, (index) {
-                            final level = column[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: _cellGap),
-                              child: Container(
-                                width: _cellSize,
-                                height: _cellSize,
-                                decoration: BoxDecoration(
-                                  color: _heatmapColor(level),
-                                  borderRadius: BorderRadius.circular(4),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SizedBox(
+                width: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.fitWidth,
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: gridWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 24,
+                          child: Stack(
+                            children: monthOffsets.entries.map((entry) {
+                              return Positioned(
+                                left: entry.value * _columnWidth,
+                                child: Text(
+                                  entry.key,
+                                  style: TextStyle(
+                                    color: AppColors.darkBrown.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: activityColumns.map((column) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: _cellGap),
+                              child: Column(
+                                children: List.generate(column.length, (index) {
+                                  final level = column[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: _cellGap,
+                                    ),
+                                    child: Container(
+                                      width: _cellSize,
+                                      height: _cellSize,
+                                      decoration: BoxDecoration(
+                                        color: _heatmapColor(level),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  );
+                                }),
                               ),
                             );
-                          }),
+                          }).toList(),
                         ),
-                      );
-                    }).toList(),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -883,7 +895,9 @@ class _WeekStrip extends StatelessWidget {
                                 color: isSelected
                                     ? Colors.white
                                     : hasRead
-                                    ? AppColors.secondary.withValues(alpha: 0.18)
+                                    ? AppColors.secondary.withValues(
+                                        alpha: 0.18,
+                                      )
                                     : AppColors.cream,
                                 shape: BoxShape.circle,
                               ),
@@ -1348,15 +1362,15 @@ List<_DayStat> _buildWeekStats(HomeDashboardModel? dashboard) {
   if (weekStats.isNotEmpty) {
     return weekStats
         .map(
-            (item) => _DayStat(
-              label: item.label,
-              shortLabel: item.shortLabel,
-              dayOfMonth: item.date?.day ?? 0,
-              minutes: item.minutes,
-            ),
-          )
-          .toList();
-    }
+          (item) => _DayStat(
+            label: item.label,
+            shortLabel: item.shortLabel,
+            dayOfMonth: item.date?.day ?? 0,
+            minutes: item.minutes,
+          ),
+        )
+        .toList();
+  }
 
   final now = DateTime.now();
   final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
@@ -1429,18 +1443,18 @@ ChallengeOverview _buildChallengeOverview(HomeDashboardModel? dashboard) {
 
 Map<String, int> _buildMonthOffsets(int year) {
   const monthLabels = [
-    'J',
-    'F',
-    'M',
-    'A',
-    'M',
-    'J',
-    'J',
-    'A',
-    'S',
-    'O',
-    'N',
-    'D',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final offsets = <String, int>{};
 
@@ -1451,20 +1465,21 @@ Map<String, int> _buildMonthOffsets(int year) {
             DateTime(year, 1, 1).weekday -
             1) ~/
         7;
-    offsets[monthLabels[month - 1]] = weekIndex;
+    offsets[monthLabels[month - 1]] = weekIndex ~/ 2;
   }
 
   return offsets;
 }
 
 List<List<int>> _buildActivityColumns(ChallengeOverview overview) {
-  final columns = List.generate(53, (_) => List<int>.filled(7, 0));
+  final columns = List.generate(27, (_) => List<int>.filled(14, 0));
   final start = DateTime(overview.year, 1, 1);
 
   for (var index = 0; index < overview.yearlyActivityLevels.length; index++) {
     final date = start.add(Duration(days: index));
-    final column = ((index + start.weekday - 1) ~/ 7).clamp(0, 52);
-    final row = date.weekday - 1;
+    final weekIndex = ((index + start.weekday - 1) ~/ 7);
+    final column = (weekIndex ~/ 2).clamp(0, 26);
+    final row = date.weekday - 1 + ((weekIndex % 2) * 7);
     columns[column][row] = overview.yearlyActivityLevels[index];
   }
 
