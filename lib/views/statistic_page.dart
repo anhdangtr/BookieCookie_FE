@@ -838,6 +838,7 @@ class _WeekStrip extends StatelessWidget {
             children: List.generate(stats.length, (index) {
               final item = stats[index];
               final isSelected = index == selectedIndex;
+              final hasRead = item.minutes > 0;
 
               return Expanded(
                 child: Padding(
@@ -881,13 +882,17 @@ class _WeekStrip extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? Colors.white
+                                    : hasRead
+                                    ? AppColors.secondary.withValues(alpha: 0.18)
                                     : AppColors.cream,
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
-                                '${item.minutes}',
-                                style: const TextStyle(
-                                  color: AppColors.darkBlue,
+                                '${item.dayOfMonth}',
+                                style: TextStyle(
+                                  color: hasRead && !isSelected
+                                      ? AppColors.secondary
+                                      : AppColors.darkBlue,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -1295,11 +1300,13 @@ class _DayStat {
   const _DayStat({
     required this.label,
     required this.shortLabel,
+    required this.dayOfMonth,
     required this.minutes,
   });
 
   final String label;
   final String shortLabel;
+  final int dayOfMonth;
   final int minutes;
 }
 
@@ -1341,20 +1348,27 @@ List<_DayStat> _buildWeekStats(HomeDashboardModel? dashboard) {
   if (weekStats.isNotEmpty) {
     return weekStats
         .map(
-          (item) => _DayStat(
-            label: item.label,
-            shortLabel: item.shortLabel,
-            minutes: item.minutes,
-          ),
-        )
-        .toList();
-  }
+            (item) => _DayStat(
+              label: item.label,
+              shortLabel: item.shortLabel,
+              dayOfMonth: item.date?.day ?? 0,
+              minutes: item.minutes,
+            ),
+          )
+          .toList();
+    }
+
+  final now = DateTime.now();
+  final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
 
   return labels
+      .asMap()
+      .entries
       .map(
-        (label) => _DayStat(
-          label: label,
-          shortLabel: label.substring(0, 2),
+        (entry) => _DayStat(
+          label: entry.value,
+          shortLabel: entry.value.substring(0, 2),
+          dayOfMonth: startOfWeek.add(Duration(days: entry.key)).day,
           minutes: 0,
         ),
       )
