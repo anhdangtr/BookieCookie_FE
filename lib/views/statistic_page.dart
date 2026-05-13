@@ -401,9 +401,11 @@ class _TodayGoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasReadToday = minutes > 0;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
@@ -425,7 +427,12 @@ class _TodayGoalCard extends StatelessWidget {
               children: [
                 CustomPaint(
                   size: const Size.square(208),
-                  painter: _ArcProgressPainter(progress: progress),
+                  painter: _ArcProgressPainter(
+                    progress: progress,
+                    progressColor: hasReadToday
+                        ? AppColors.secondary
+                        : AppColors.primary,
+                  ),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
@@ -440,14 +447,6 @@ class _TodayGoalCard extends StatelessWidget {
                         ),
                       )
                     else ...[
-                      Icon(
-                        Icons.local_fire_department_rounded,
-                        size: 42,
-                        color: minutes > 0
-                            ? AppColors.secondary
-                            : AppColors.darkBrown.withValues(alpha: 0.28),
-                      ),
-                      const SizedBox(height: 10),
                       Text(
                         '$minutes',
                         style: const TextStyle(
@@ -480,35 +479,6 @@ class _TodayGoalCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.local_fire_department_rounded,
-                  color: AppColors.secondary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    streakDays == 0
-                        ? 'Read a little today to start your streak.'
-                        : 'You are on a $streakDays-day reading streak.',
-                    style: const TextStyle(
-                      color: AppColors.darkBlue,
-                      fontWeight: FontWeight.w700,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -534,7 +504,7 @@ class _StreakSummaryRow extends StatelessWidget {
             iconColor: const Color(0xFFFF5A5F),
             iconBackground: const Color(0xFFFFECEC),
             value: currentStreak,
-            label: 'CURRENT STREAK',
+            label: 'Current streak',
           ),
         ),
         const SizedBox(width: 16),
@@ -544,7 +514,7 @@ class _StreakSummaryRow extends StatelessWidget {
             iconColor: const Color(0xFFFFA000),
             iconBackground: const Color(0xFFFFF4DD),
             value: maxStreak,
-            label: 'MAX STREAK',
+            label: 'Max streak',
           ),
         ),
       ],
