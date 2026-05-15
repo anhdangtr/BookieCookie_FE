@@ -95,7 +95,6 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
     required int year,
   }) async {
     final homeViewModel = context.read<HomeViewModel>();
-    final messenger = ScaffoldMessenger.of(context);
     final controller = TextEditingController(
       text: initialGoal > 0 ? '$initialGoal' : '',
     );
@@ -158,13 +157,11 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
       },
     );
 
-    controller.dispose();
-
-    if (updatedGoal == null || !mounted) {
-      return;
-    }
-
     try {
+      if (updatedGoal == null || !mounted) {
+        return;
+      }
+
       await homeViewModel.updateYearlyGoal(
         updatedGoal,
         year: year,
@@ -172,23 +169,31 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
       if (!mounted) {
         return;
       }
-      messenger.showSnackBar(
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
         const SnackBar(content: Text('Yearly goal updated.')),
       );
     } on ApiException catch (error) {
       if (!mounted) {
         return;
       }
-      messenger.showSnackBar(
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
         SnackBar(content: Text(error.message)),
       );
     } catch (error) {
       if (!mounted) {
         return;
       }
-      messenger.showSnackBar(
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
         SnackBar(content: Text('Could not update yearly goal: $error')),
       );
+    } finally {
+      controller.dispose();
     }
   }
 
@@ -254,7 +259,8 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
                         const SizedBox(height: 28),
                         _YearlyOverviewCard(
                           year: dashboard?.year ?? DateTime.now().year,
-                          finishedCount: dashboard?.finishedInYear.length ?? 0,
+                          finishedCount:
+                              dashboard?.statistics?.year.booksFinished ?? 0,
                           yearlyGoal: yearlyGoal,
                           currentReadingCount:
                               dashboard?.currentReading.length ?? 0,
@@ -1542,7 +1548,10 @@ _ChartData _buildChartData(HomeDashboardModel? dashboard, _ChartRange range) {
 }
 
 int _buildYearlyGoal(HomeDashboardModel? dashboard) {
-  final goal = dashboard?.statistics?.year.yearlyGoalBooks ?? 0;
+  final goal =
+      dashboard?.statistics?.year.yearlyGoalBooks ??
+      dashboard?.goals?.yearlyBooks ??
+      0;
   return goal;
 }
 

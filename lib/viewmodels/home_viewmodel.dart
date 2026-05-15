@@ -46,7 +46,7 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> updateYearlyGoal(int targetValue, {int? year}) async {
     try {
-      await _apiService.post(
+      final result = await _apiService.post(
         '/home/${user.id}/goals/yearly',
         {
           'target_value': targetValue,
@@ -54,12 +54,16 @@ class HomeViewModel extends ChangeNotifier {
         },
         headers: token == null ? null : {'Authorization': 'Bearer $token'},
       );
+
+      if (result['success'] != true) {
+        throw ApiException(
+          result['message'] as String? ?? 'Could not update yearly goal',
+        );
+      }
+
       errorMessage = null;
-      dashboard = _applyYearlyGoalUpdate(
-        dashboard,
-        targetValue,
-      );
-      notifyListeners();
+      dashboard = _applyYearlyGoalUpdate(dashboard, targetValue);
+      await loadDashboard();
     } on ApiException {
       rethrow;
     } catch (error) {
