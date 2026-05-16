@@ -362,7 +362,7 @@ class _ManualAddBookViewState extends State<_ManualAddBookView> {
                               hintText: 'Enter author name',
                             ),
                             const SizedBox(height: 18),
-                            const _FieldLabel('Read'),
+                            const _FieldLabel('Status'),
                             _BookDropdownField<String>(
                               initialValue: _selectedStatus,
                               items: _statusOptions

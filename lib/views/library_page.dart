@@ -44,6 +44,7 @@ class _LibraryPageView extends StatefulWidget {
 class _LibraryPageViewState extends State<_LibraryPageView> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String _selectedStatus = _libraryStatusFilters.first.value;
 
   @override
   void dispose() {
@@ -186,10 +187,15 @@ class _LibraryPageViewState extends State<_LibraryPageView> {
           builder: (context, libraryVM, _) {
             final filteredBooks = libraryVM.books.where((book) {
               final query = _searchQuery.trim().toLowerCase();
-              if (query.isEmpty) return true;
+              final matchesStatus =
+                  _selectedStatus == 'all' || book.status == _selectedStatus;
+              if (query.isEmpty) return matchesStatus;
 
-              return book.title.toLowerCase().contains(query) ||
+              final matchesQuery =
+                  book.title.toLowerCase().contains(query) ||
                   book.author.toLowerCase().contains(query);
+
+              return matchesStatus && matchesQuery;
             }).toList();
 
             return RefreshIndicator(
@@ -207,6 +213,13 @@ class _LibraryPageViewState extends State<_LibraryPageView> {
                           onChanged: (value) {
                             setState(() {
                               _searchQuery = value;
+                            });
+                          },
+                          selectedStatus: _selectedStatus,
+                          statusOptions: _libraryStatusFilters,
+                          onStatusSelected: (value) {
+                            setState(() {
+                              _selectedStatus = value;
                             });
                           },
                           onAddBookSelected: (action) =>
@@ -279,11 +292,17 @@ class _LibraryHeader extends StatelessWidget {
   const _LibraryHeader({
     required this.controller,
     required this.onChanged,
+    required this.selectedStatus,
+    required this.statusOptions,
+    required this.onStatusSelected,
     required this.onAddBookSelected,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final String selectedStatus;
+  final List<_LibraryStatusFilter> statusOptions;
+  final ValueChanged<String> onStatusSelected;
   final ValueChanged<AddBookAction> onAddBookSelected;
 
   @override
@@ -334,6 +353,44 @@ class _LibraryHeader extends StatelessWidget {
               borderRadius: BorderRadius.all(Radius.circular(999)),
               borderSide: BorderSide(color: AppColors.primary, width: 1.4),
             ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 38,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: statusOptions.length,
+            separatorBuilder: (_, index) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final option = statusOptions[index];
+              final isSelected = option.value == selectedStatus;
+
+              return ChoiceChip(
+                label: Text(option.label),
+                selected: isSelected,
+                onSelected: (_) => onStatusSelected(option.value),
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+                backgroundColor: Colors.white,
+                selectedColor: AppColors.primary,
+                side: BorderSide(
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.16),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                showCheckmark: false,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -618,3 +675,18 @@ String _statusLabel(String status) {
       return 'Planned';
   }
 }
+
+class _LibraryStatusFilter {
+  const _LibraryStatusFilter({required this.value, required this.label});
+
+  final String value;
+  final String label;
+}
+
+const List<_LibraryStatusFilter> _libraryStatusFilters = [
+  _LibraryStatusFilter(value: 'all', label: 'All'),
+  _LibraryStatusFilter(value: 'plan_to_read', label: 'Planned'),
+  _LibraryStatusFilter(value: 'reading', label: 'Reading'),
+  _LibraryStatusFilter(value: 'finished', label: 'Finished'),
+  _LibraryStatusFilter(value: 'abandoned', label: 'Dropped'),
+];
