@@ -261,6 +261,7 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
                         _WeekStrip(
                           stats: weekStats,
                           selectedIndex: selectedDayIndex,
+                          todayHasRead: minuteGoal.minutes > 0,
                         ),
                         const SizedBox(height: 28),
                         _ReadingTimeChartCard(
@@ -509,7 +510,7 @@ class _StatisticHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Goal',
+          'Reading statistics',
           style: TextStyle(
             color: AppColors.darkBlue,
             fontSize: 28,
@@ -1096,10 +1097,15 @@ class _LineChart extends StatelessWidget {
 }
 
 class _WeekStrip extends StatelessWidget {
-  const _WeekStrip({required this.stats, required this.selectedIndex});
+  const _WeekStrip({
+    required this.stats,
+    required this.selectedIndex,
+    required this.todayHasRead,
+  });
 
   final List<_DayStat> stats;
   final int selectedIndex;
+  final bool todayHasRead;
 
   @override
   Widget build(BuildContext context) {
@@ -1128,7 +1134,7 @@ class _WeekStrip extends StatelessWidget {
             children: List.generate(stats.length, (index) {
               final item = stats[index];
               final isSelected = index == selectedIndex;
-              final hasRead = item.minutes > 0;
+              final hasRead = isSelected ? todayHasRead : item.minutes > 0;
 
               return Expanded(
                 child: Padding(
@@ -1164,7 +1170,11 @@ class _WeekStrip extends StatelessWidget {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? Colors.white
+                                ? hasRead
+                                      ? AppColors.secondary.withValues(
+                                          alpha: 0.18,
+                                        )
+                                      : AppColors.cream
                                 : hasRead
                                 ? AppColors.secondary.withValues(alpha: 0.18)
                                 : AppColors.cream,
@@ -1173,7 +1183,7 @@ class _WeekStrip extends StatelessWidget {
                           child: Text(
                             '${item.dayOfMonth}',
                             style: TextStyle(
-                              color: hasRead && !isSelected
+                              color: hasRead
                                   ? AppColors.secondary
                                   : AppColors.darkBlue,
                               fontWeight: FontWeight.w800,
