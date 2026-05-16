@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
+import '../data/models/google_book_search_result.dart';
 import '../data/models/library_book_model.dart';
 import '../data/models/user_model.dart';
 import '../viewmodels/library_viewmodel.dart';
 import 'account_page.dart';
+import 'barcode_scan_page.dart';
 import 'book_detail_page.dart';
 import 'challenge_page.dart';
 import 'home_page.dart';
 import 'manual_add_book_page.dart';
 import 'statistic_page.dart';
+import 'widgets/add_book_menu_button.dart';
 import 'widgets/app_bottom_bar.dart';
 
 class LibraryPage extends StatelessWidget {
@@ -48,20 +51,71 @@ class _LibraryPageViewState extends State<_LibraryPageView> {
     super.dispose();
   }
 
-  Future<void> _openAddBook(
+  Future<void> _handleAddBookAction(
     BuildContext context,
     LibraryViewModel libraryVM,
+    AddBookAction action,
   ) async {
-    final created = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            ManualAddBookPage(user: widget.user, token: widget.token),
-      ),
-    );
+    switch (action) {
+      case AddBookAction.manual:
+        final created = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                ManualAddBookPage(user: widget.user, token: widget.token),
+          ),
+        );
 
-    if (created == true) {
-      await libraryVM.loadLibrary();
+        if (created == true) {
+          await libraryVM.loadLibrary();
+        }
+        break;
+      case AddBookAction.searchOnline:
+        final created = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ManualAddBookPage(
+              user: widget.user,
+              token: widget.token,
+              initialMode: AddBookMode.searchOnline,
+            ),
+          ),
+        );
+
+        if (created == true) {
+          await libraryVM.loadLibrary();
+        }
+        break;
+      case AddBookAction.scanIsbn:
+        final GoogleBookSearchResult? scannedBook =
+            await Navigator.push<GoogleBookSearchResult>(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    BarcodeScanPage(user: widget.user, token: widget.token),
+              ),
+            );
+
+        if (!context.mounted || scannedBook == null) {
+          break;
+        }
+
+        final created = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ManualAddBookPage(
+              user: widget.user,
+              token: widget.token,
+              initialMode: AddBookMode.manual,
+              initialSearchResult: scannedBook,
+            ),
+          ),
+        );
+
+        if (created == true) {
+          await libraryVM.loadLibrary();
+        }
+        break;
     }
   }
 
@@ -81,7 +135,8 @@ class _LibraryPageViewState extends State<_LibraryPageView> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => ChallengePage(user: widget.user, token: widget.token),
+            builder: (_) =>
+                ChallengePage(user: widget.user, token: widget.token),
           ),
         );
         break;
@@ -89,7 +144,8 @@ class _LibraryPageViewState extends State<_LibraryPageView> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => StatisticPage(user: widget.user, token: widget.token),
+            builder: (_) =>
+                StatisticPage(user: widget.user, token: widget.token),
           ),
         );
         break;
@@ -153,7 +209,8 @@ class _LibraryPageViewState extends State<_LibraryPageView> {
                               _searchQuery = value;
                             });
                           },
-                          onAddTap: () => _openAddBook(context, libraryVM),
+                          onAddBookSelected: (action) =>
+                              _handleAddBookAction(context, libraryVM, action),
                         ),
                         const SizedBox(height: 24),
                         _LibrarySummary(
@@ -222,12 +279,12 @@ class _LibraryHeader extends StatelessWidget {
   const _LibraryHeader({
     required this.controller,
     required this.onChanged,
-    required this.onAddTap,
+    required this.onAddBookSelected,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
-  final VoidCallback onAddTap;
+  final ValueChanged<AddBookAction> onAddBookSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -244,32 +301,7 @@ class _LibraryHeader extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              child: InkWell(
-                onTap: onAddTap,
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.add_rounded,
-                    color: AppColors.darkBlue,
-                  ),
-                ),
-              ),
-            ),
+            AddBookMenuButton(onSelected: onAddBookSelected),
           ],
         ),
         const SizedBox(height: 18),
@@ -379,7 +411,8 @@ class _LibraryBookCard extends StatelessWidget {
                     width: double.infinity,
                     color: AppColors.cream,
                     child:
-                        book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty
+                        book.coverImageUrl != null &&
+                            book.coverImageUrl!.isNotEmpty
                         ? Padding(
                             padding: const EdgeInsets.all(10),
                             child: Image.network(
