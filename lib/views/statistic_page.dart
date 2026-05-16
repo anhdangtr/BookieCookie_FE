@@ -44,14 +44,12 @@ class _StatisticPageView extends StatefulWidget {
 }
 
 class _StatisticPageViewState extends State<_StatisticPageView> {
-  late int _selectedDayIndex;
   late int _selectedYear;
   _ChartRange _selectedChartRange = _ChartRange.week;
 
   @override
   void initState() {
     super.initState();
-    _selectedDayIndex = DateTime.now().weekday - 1;
     _selectedYear = DateTime.now().year;
   }
 
@@ -230,7 +228,8 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
               });
             }
             final weekStats = _buildWeekStats(dashboard);
-            final selectedStat = weekStats[_selectedDayIndex];
+            final selectedDayIndex = _resolveSystemDayIndex(weekStats);
+            final selectedStat = weekStats[selectedDayIndex];
             final minuteGoal = _buildTodayGoal(dashboard);
             final yearlyGoal = _buildYearlyGoal(dashboard);
             final overview = _buildChallengeOverview(dashboard);
@@ -261,7 +260,7 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
                         const SizedBox(height: 20),
                         _WeekStrip(
                           stats: weekStats,
-                          selectedIndex: _selectedDayIndex,
+                          selectedIndex: selectedDayIndex,
                         ),
                         const SizedBox(height: 28),
                         _ReadingTimeChartCard(
@@ -292,10 +291,6 @@ class _StatisticPageViewState extends State<_StatisticPageView> {
                             initialGoal: yearlyGoal,
                             year: dashboardYear,
                           ),
-                          highlightedBook:
-                              dashboard?.finishedInYear.isNotEmpty == true
-                              ? dashboard!.finishedInYear.first
-                              : null,
                         ),
                         if (homeVM.errorMessage != null) ...[
                           const SizedBox(height: 20),
@@ -1205,7 +1200,6 @@ class _YearlyOverviewCard extends StatelessWidget {
     required this.yearlyGoal,
     required this.currentReadingCount,
     required this.onEditGoal,
-    required this.highlightedBook,
   });
 
   final int year;
@@ -1213,7 +1207,6 @@ class _YearlyOverviewCard extends StatelessWidget {
   final int yearlyGoal;
   final int currentReadingCount;
   final VoidCallback onEditGoal;
-  final FinishedBook? highlightedBook;
 
   @override
   Widget build(BuildContext context) {
@@ -1342,59 +1335,6 @@ class _YearlyOverviewCard extends StatelessWidget {
               ),
             ],
           ),
-          if (highlightedBook != null) ...[
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cream,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.auto_stories_rounded,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Latest finished',
-                          style: TextStyle(
-                            color: AppColors.darkBrown,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          highlightedBook!.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.darkBlue,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1612,12 +1552,14 @@ class _DayStat {
     required this.label,
     required this.shortLabel,
     required this.dayOfMonth,
+    required this.date,
     required this.minutes,
   });
 
   final String label;
   final String shortLabel;
   final int dayOfMonth;
+  final DateTime date;
   final int minutes;
 }
 
@@ -1663,6 +1605,7 @@ List<_DayStat> _buildWeekStats(HomeDashboardModel? dashboard) {
             label: item.label,
             shortLabel: item.shortLabel,
             dayOfMonth: item.date?.day ?? 0,
+            date: item.date ?? DateTime.now(),
             minutes: item.minutes,
           ),
         )
@@ -1680,10 +1623,23 @@ List<_DayStat> _buildWeekStats(HomeDashboardModel? dashboard) {
           label: entry.value,
           shortLabel: entry.value.substring(0, 2),
           dayOfMonth: startOfWeek.add(Duration(days: entry.key)).day,
+          date: startOfWeek.add(Duration(days: entry.key)),
           minutes: 0,
         ),
       )
       .toList();
+}
+
+int _resolveSystemDayIndex(List<_DayStat> stats) {
+  final now = DateTime.now();
+  final index = stats.indexWhere(
+    (item) =>
+        item.date.year == now.year &&
+        item.date.month == now.month &&
+        item.date.day == now.day,
+  );
+
+  return index >= 0 ? index : 0;
 }
 
 _ChartData _buildChartData(HomeDashboardModel? dashboard, _ChartRange range) {
